@@ -4,6 +4,7 @@ name: WildFly Core Only
     branches: [master]
 env:
   MAVEN_OPTS: -Xmx1g -Xmx1g
+  JBOSS_THREADS_VERSION: 2.3.3.Final-SNAPSHOT
 jobs:
   wildfly-core-build:
     name: wildfly-core-build
@@ -24,6 +25,11 @@ jobs:
     - uses: actions/checkout@v2
       with:
         path: .ci-tools
+    - uses: actions/checkout@v2
+      with:
+        repository: yersan/jboss-threads
+        ref: 2.3.3.Final-test
+        path: .jboss-threads
     - uses: actions/cache@v1
       with:
         path: ~/.m2/repository
@@ -34,18 +40,21 @@ jobs:
         java-version: '11'
     - name: Add '::1 localhost' to hosts file
       run: sudo bash -c 'echo ::1 localhost >> /etc/hosts'
+    - name: Build JBoss Threads
+      run: |
+        cd .jboss-threads
+        mvn -B install -DskipTests
     - name: Maven Build
       run: |
-        mvn -B install ${MAVEN_TEST_PARAMS} ${MAVEN_BUILD_EXTRA_PARAMS} 
+        mvn -B install ${MAVEN_TEST_PARAMS} ${MAVEN_BUILD_EXTRA_PARAMS} -Dversion.org.jboss.threads=${JBOSS_THREADS_VERSION}
         echo "build done"
-        
     # Uncomment to enable debugging
-    - name: Set up TMate for SSH debugging
-      uses: mxschmitt/action-tmate@v2
+    # - name: Set up TMate for SSH debugging
+    #  uses: mxschmitt/action-tmate@v2
       
     # Uncomment to run test
-    #- name: Run Test
-    #  run: mvn install ${MAVEN_TEST_PARAMS} -pl testsuite/domain -Dtest=OperationCancellationTestCase
+    - name: Run Test
+      run: mvn install ${MAVEN_TEST_PARAMS} -pl testsuite/domain -Dtest=OperationCancellationTestCase -Dversion.org.jboss.threads=${JBOSS_THREADS_VERSION}
       
     - name: Run multi-repo-ci-tool '{}' command
       if: ${{ failure() }}
